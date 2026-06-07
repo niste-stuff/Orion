@@ -1,0 +1,14 @@
+{
+  "name": "orion-monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter orion-chat dev",
+    "build": "pnpm --filter orion-chat build",
+    "preview": "pnpm --filter orion-chat preview",
+    "tauri": "pnpm --filter orion-chat tauri",
+    "test": "pnpm --filter @orion/core test",
+    "test:rust": "cargo test --manifest-path apps/orion/src-tauri/Cargo.toml"
+  }
+}

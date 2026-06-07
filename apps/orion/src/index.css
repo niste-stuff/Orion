@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Light theme — warm cream / paper. RGB channels (space-separated) so
+     Tailwind's /opacity modifiers resolve correctly. */
+  :root {
+    --c-paper: 244 238 227;
+    --c-surface: 251 248 242;
+    --c-surface-sunk: 239 232 218;
+    --c-ink: 31 27 22;
+    --c-muted: 107 98 83;
+    --c-faint: 154 143 125;
+    --c-line: 230 221 206;
+    --c-clay: 201 100 66;
+    --c-clay-dark: 189 93 58;
+    --c-clay-soft: 240 221 210;
+
+    --shadow-soft: 0 1px 2px rgba(31, 27, 22, 0.04), 0 2px 8px rgba(31, 27, 22, 0.05);
+    --shadow-raised: 0 1px 3px rgba(31, 27, 22, 0.06), 0 6px 16px rgba(31, 27, 22, 0.06);
+
+    color-scheme: light;
+  }
+
+  /* Dark theme — warm near-black, modeled on Claude's UI. */
+  .dark {
+    --c-paper: 28 27 25;
+    --c-surface: 42 40 38;
+    --c-surface-sunk: 34 33 31;
+    --c-ink: 245 243 236;
+    --c-muted: 181 175 163;
+    --c-faint: 132 126 114;
+    --c-line: 57 54 50;
+    --c-clay: 205 116 86;
+    --c-clay-dark: 217 140 110;
+    --c-clay-soft: 58 42 34;
+
+    --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.35);
+    --shadow-raised: 0 1px 3px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.45);
+
+    color-scheme: dark;
+  }
+
+  html {
+    font-family: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  }
+
+  body {
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    background-color: rgb(var(--c-paper));
+    color: rgb(var(--c-ink));
+  }
+}
+
+/* Pulsing dots for the "thinking…" indicator. */
+.thinking-dot {
+  font-size: 7px;
+  animation: thinking-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes thinking-pulse {
+  0%,
+  60%,
+  100% {
+    opacity: 0.25;
+  }
+  30% {
+    opacity: 0.9;
+  }
+}

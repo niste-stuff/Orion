@@ -1,0 +1,26 @@
+{
+  "name": "@orion/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.11.0",
+    "png-chunk-text": "^1.0.0",
+    "png-chunks-encode": "^1.0.0",
+    "png-chunks-extract": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.9"
+  }
+}
