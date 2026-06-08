@@ -1,4 +1,4 @@
-import type { Card, Lorebook, ReviewableSection, ScalarSection } from '@orion/core'
+import type { Card, Lorebook, LorebookEntry, ReviewableSection, ScalarSection } from '@orion/core'
 import { MAX_OPENING_MESSAGES } from '@orion/core'
 import { useHoverExpand } from './useHoverExpand'
 
@@ -111,6 +111,9 @@ export default function CardPanel({
               if (section) onActiveSection(section)
             }}
           >
+            {/* Context Budget Dashboard */}
+            <ContextBudgetDashboard card={card} />
+
             {/* Personality / Scenario / Dialogue examples / Storefront */}
             {SCALAR_FIELDS.map(({ id, label, placeholder, note, rows }) => (
               <label key={id} className="flex flex-col gap-2">
@@ -292,8 +295,35 @@ type LorebookSectionProps = {
 }
 
 function LorebookSection({ lorebook, onChange, reviewing, reviewDisabled, onReview }: LorebookSectionProps) {
+  const entries = lorebook.entries || []
+
+  function addEntry() {
+    const newEntry: LorebookEntry = {
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
+      keys: [],
+      content: '',
+      enabled: true,
+      insertionOrder: 50,
+    }
+    onChange({ ...lorebook, entries: [...entries, newEntry] })
+  }
+
+  function updateEntry(id: string, updates: Partial<LorebookEntry>) {
+    onChange({
+      ...lorebook,
+      entries: entries.map((e) => (e.id === id ? { ...e, ...updates } : e)),
+    })
+  }
+
+  function deleteEntry(id: string) {
+    onChange({
+      ...lorebook,
+      entries: entries.filter((e) => e.id !== id),
+    })
+  }
+
   return (
-    <div className="flex flex-col gap-2 border-t border-line pt-5">
+    <div className="flex flex-col gap-3 border-t border-line pt-5">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wide text-muted">Lorebook</span>
         <div className="flex items-center gap-2">
@@ -331,19 +361,201 @@ function LorebookSection({ lorebook, onChange, reviewing, reviewDisabled, onRevi
       </div>
 
       {lorebook.enabled ? (
-        <textarea
-          value={lorebook.text}
-          onChange={(e) => onChange({ ...lorebook, text: e.target.value })}
-          placeholder="World facts, background, and lore — injected every turn, so keep it lean…"
-          rows={6}
-          data-section="lorebook"
-          className={textareaClass}
-        />
+        <div className="space-y-4">
+          {entries.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-line bg-paper px-3.5 py-4 text-center text-xs text-faint">
+              No entries defined yet. Keys trigger world facts in model context.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {entries.map((entry) => {
+                const tokenEstimate = Math.ceil(entry.content.length / 4)
+                return (
+                  <div 
+                    key={entry.id} 
+                    className={`rounded-xl border border-line bg-paper p-3 shadow-soft space-y-2.5 transition-all duration-200 ${
+                      entry.enabled ? 'border-line' : 'opacity-60 border-dashed bg-paper-sunk'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        {/* Toggle enabled state */}
+                        <button
+                          type="button"
+                          onClick={() => updateEntry(entry.id, { enabled: !entry.enabled })}
+                          className={`h-4 w-4 rounded border flex items-center justify-center transition-all ${
+                            entry.enabled 
+                              ? 'bg-clay border-clay text-white' 
+                              : 'border-line hover:border-clay'
+                          }`}
+                          title={entry.enabled ? 'Disable entry' : 'Enable entry'}
+                        >
+                          {entry.enabled && <span className="text-[10px]">✓</span>}
+                        </button>
+                        <span className="text-[10px] font-semibold text-faint uppercase">
+                          Insertion Order
+                        </span>
+                        <input
+                          type="number"
+                          value={entry.insertionOrder}
+                          onChange={(e) => updateEntry(entry.id, { insertionOrder: parseInt(e.target.value) || 50 })}
+                          className="w-12 px-1 py-0.5 text-xs text-ink rounded bg-surface border border-line focus:outline-none focus:border-clay text-center font-mono"
+                          title="Priority order for injection (lower runs earlier)"
+                        />
+                      </div>
+                      
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-faint font-semibold">
+                          ~{tokenEstimate} tokens
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => deleteEntry(entry.id)}
+                          className="rounded p-1 text-xs text-clay-dark hover:bg-clay-soft transition"
+                          title="Delete entry"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Trigger Keys */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-semibold text-muted uppercase tracking-wider block">
+                        Trigger Keys (comma-separated)
+                      </label>
+                      <input
+                        type="text"
+                        value={entry.keys.join(', ')}
+                        onChange={(e) => {
+                          const keys = e.target.value
+                            .split(',')
+                            .map((k) => k.trim())
+                            .filter(Boolean)
+                          updateEntry(entry.id, { keys })
+                        }}
+                        placeholder="e.g. magic, academy, tower"
+                        className="w-full px-2.5 py-1 text-xs text-ink rounded-lg bg-surface border border-line focus:outline-none focus:border-clay font-mono placeholder:text-faint"
+                      />
+                    </div>
+
+                    {/* Content */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-semibold text-muted uppercase tracking-wider block">
+                        Content
+                      </label>
+                      <textarea
+                        value={entry.content}
+                        onChange={(e) => updateEntry(entry.id, { content: e.target.value })}
+                        placeholder="World facts or lore about this subject..."
+                        rows={3}
+                        className={textareaClass}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={addEntry}
+            className="w-full rounded-lg border border-line bg-paper px-3.5 py-2 text-sm font-medium text-ink shadow-soft transition hover:bg-surface-sunk active:scale-[0.98]"
+          >
+            + Add Lorebook Entry
+          </button>
+        </div>
       ) : (
         <p className="text-[11px] italic text-faint">
-          Off — excluded from the model context and from export. Toggle on to add world lore.
+          Off — excluded from the model context and from export. Toggle on to add key-triggered lorebook entries.
         </p>
       )}
+    </div>
+  )
+}
+
+function ContextBudgetDashboard({ card }: { card: Card }) {
+  const coreWeightTokens = Math.ceil((card.personality.length + card.scenario.length) / 4)
+  const permanentPayloadTokens = Math.ceil(card.opening_messages.reduce((sum, o) => sum + o.length, 0) / 4)
+  
+  const activeEntries = card.lorebook.enabled ? card.lorebook.entries.filter(e => e.enabled) : []
+  const memoryOverheadTokens = Math.ceil(activeEntries.reduce((sum, e) => sum + e.content.length, 0) / 4)
+  
+  const totalTokens = coreWeightTokens + permanentPayloadTokens + memoryOverheadTokens
+  const maxSafeTokens = 4000 // typical context limit/threshold for safe bot logic on Janitor AI
+
+  // Percentage calculations
+  const corePct = Math.min(100, (coreWeightTokens / maxSafeTokens) * 100)
+  const permanentPct = Math.min(100, (permanentPayloadTokens / maxSafeTokens) * 100)
+  const memoryPct = Math.min(100, (memoryOverheadTokens / maxSafeTokens) * 100)
+
+  return (
+    <div className="rounded-xl border border-line bg-paper-sunk p-4 space-y-3 shadow-soft transition-all duration-300 hover:shadow-md">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-clay animate-pulse" />
+          Context Budget
+        </span>
+        <span className="text-xs font-medium text-ink">
+          {totalTokens.toLocaleString()} tokens
+        </span>
+      </div>
+
+      {/* Stacked progress bar */}
+      <div className="h-2.5 w-full rounded-full bg-surface-sunk overflow-hidden flex">
+        <div 
+          className="h-full bg-clay transition-all duration-500 ease-out" 
+          style={{ width: `${corePct}%` }}
+          title={`Core Weight: ${coreWeightTokens} tokens`}
+        />
+        <div 
+          className="h-full bg-emerald-500 transition-all duration-500 ease-out" 
+          style={{ width: `${permanentPct}%` }}
+          title={`Permanent Payload: ${permanentPayloadTokens} tokens`}
+        />
+        <div 
+          className="h-full bg-indigo-500 transition-all duration-500 ease-out" 
+          style={{ width: `${memoryPct}%` }}
+          title={`Memory Overhead: ${memoryOverheadTokens} tokens`}
+        />
+      </div>
+
+      {/* Grid of details */}
+      <div className="grid grid-cols-3 gap-2 text-[11px]">
+        <div className="space-y-1">
+          <div className="flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-clay" />
+            <span className="text-faint font-medium">Core Weight</span>
+          </div>
+          <p className="font-semibold text-ink">{coreWeightTokens} t</p>
+          <span className={`text-[9px] font-medium leading-none ${coreWeightTokens > 1000 ? 'text-amber-500' : 'text-faint'}`}>
+            {coreWeightTokens > 1000 ? 'Heavy (>1k)' : 'Optimal (<1k)'}
+          </span>
+        </div>
+
+        <div className="space-y-1">
+          <div className="flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            <span className="text-faint font-medium">Permanent</span>
+          </div>
+          <p className="font-semibold text-ink">{permanentPayloadTokens} t</p>
+          <span className="text-[9px] text-faint font-medium leading-none">
+            Opener memory
+          </span>
+        </div>
+
+        <div className="space-y-1">
+          <div className="flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
+            <span className="text-faint font-medium">Memory Overh.</span>
+          </div>
+          <p className="font-semibold text-ink">{memoryOverheadTokens} t</p>
+          <span className={`text-[9px] font-medium leading-none ${memoryOverheadTokens > 2000 ? 'text-rose-500 animate-pulse' : 'text-faint'}`}>
+            {memoryOverheadTokens > 2000 ? 'Context Risk (>2k)' : 'Safe'}
+          </span>
+        </div>
+      </div>
     </div>
   )
 }

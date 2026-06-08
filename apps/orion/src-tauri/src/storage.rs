@@ -19,7 +19,10 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
+
+static STORAGE_LOCK: Mutex<()> = Mutex::new(());
 
 // ---------------------------------------------------------------------------
 // Paths / helpers (over a `root` = the `<appDataDir>/orion` directory)
@@ -125,12 +128,14 @@ fn core_save_card(root: &Path, card: &Value) -> Result<(), String> {
 /// Summaries of every saved card, newest-updated first.
 #[tauri::command]
 pub fn list_cards(app: AppHandle) -> Result<Vec<CardSummary>, String> {
+    let _guard = STORAGE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     Ok(core_list_cards(&data_root(&app)?))
 }
 
 /// The full card file, returned untouched so the frontend owns the shape.
 #[tauri::command]
 pub fn load_card(app: AppHandle, id: String) -> Result<Value, String> {
+    let _guard = STORAGE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     core_load_card(&data_root(&app)?, &id)
 }
 
@@ -138,7 +143,19 @@ pub fn load_card(app: AppHandle, id: String) -> Result<Value, String> {
 /// to name the file.
 #[tauri::command]
 pub fn save_card(app: AppHandle, card: Value) -> Result<(), String> {
+    let _guard = STORAGE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     core_save_card(&data_root(&app)?, &card)
+}
+
+/// Delete a card file by its ID.
+#[tauri::command]
+pub fn delete_card(app: AppHandle, id: String) -> Result<(), String> {
+    let _guard = STORAGE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let path = cards_dir(&data_root(&app)?).join(format!("{id}.json"));
+    if path.exists() {
+        fs::remove_file(&path).map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -240,6 +257,7 @@ fn core_list_my_sample_sets(root: &Path) -> Vec<SampleSetSummary> {
 /// Write a sample set file and refresh the index.
 #[tauri::command]
 pub fn save_sample_set(app: AppHandle, set: SampleSet) -> Result<(), String> {
+    let _guard = STORAGE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     core_save_sample_set(&data_root(&app)?, set)
 }
 
@@ -247,6 +265,7 @@ pub fn save_sample_set(app: AppHandle, set: SampleSet) -> Result<(), String> {
 /// text; the Trainer may show name/slug/tags/count and nothing more.
 #[tauri::command]
 pub fn list_my_sample_sets(app: AppHandle) -> Result<Vec<SampleSetSummary>, String> {
+    let _guard = STORAGE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     Ok(core_list_my_sample_sets(&data_root(&app)?))
 }
 
@@ -312,6 +331,7 @@ fn core_rebuild_index(root: &Path) -> Result<(), String> {
 /// file management: set files dropped in by hand become known after this.
 #[tauri::command]
 pub fn rebuild_index(app: AppHandle) -> Result<(), String> {
+    let _guard = STORAGE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     core_rebuild_index(&data_root(&app)?)
 }
 
@@ -713,6 +733,7 @@ pub fn build_style_reference_for(
     tags: &[WeightedTag],
     active_section: &str,
 ) -> Option<String> {
+    let _guard = STORAGE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = data_root(app).ok()?;
     core_build_style_reference(&root, tags, active_section)
 }

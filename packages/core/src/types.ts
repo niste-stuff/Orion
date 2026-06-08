@@ -14,10 +14,18 @@ export type RequestMessage = {
   content: string
 }
 
+export type LorebookEntry = {
+  id: string
+  keys: string[]
+  content: string
+  enabled: boolean
+  insertionOrder: number
+}
+
 /** A lorebook is OPTIONAL and OFF BY DEFAULT — model-facing only when enabled. */
 export type Lorebook = {
   enabled: boolean
-  text: string
+  entries: LorebookEntry[]
 }
 
 /**
@@ -53,7 +61,7 @@ export type CardUpdates = {
   dialogue_examples?: string
   storefront?: string
   opening_messages?: string[]
-  lorebook?: string
+  lorebook_entries?: LorebookEntry[]
   lorebook_enabled?: boolean
 }
 

@@ -51,6 +51,10 @@ export default function App() {
     activeId,
     newCard,
     switchCard,
+    chatHistory,
+    setChatHistory,
+    deleteCard,
+    renameCard,
   } = useCard()
 
   // The card section the user is currently editing — drives section-aware style
@@ -58,7 +62,16 @@ export default function App() {
   const [activeSection, setActiveSection] = useState('personality')
 
   // The conversational engine: chat in, section rewrites out.
-  const chat = useOrionChat({ settings, card, activeSection, applyUpdates, restoreCard })
+  const chat = useOrionChat({
+    settings,
+    card,
+    activeId,
+    activeSection,
+    applyUpdates,
+    restoreCard,
+    messages: chatHistory,
+    setMessages: setChatHistory,
+  })
 
   // The quality coach reviews one section's text on demand. It never writes a
   // section — "Fix this" routes back through the engine above.
@@ -67,7 +80,7 @@ export default function App() {
     scenario: card.scenario,
     dialogue_examples: card.dialogue_examples,
     storefront: card.storefront,
-    lorebook: card.lorebook.text,
+    lorebook: card.lorebook.entries.map((e) => e.content).join('\n\n'),
   }
   const coach = useCoach({ settings, sections: reviewSections })
 
@@ -101,10 +114,11 @@ export default function App() {
         onToggleTheme={toggleTheme}
         cards={cards}
         activeId={activeId}
-        title={title}
         onSetTitle={setTitle}
         onNewCard={newCard}
         onSwitchCard={switchCard}
+        onDeleteCard={deleteCard}
+        onRenameCard={renameCard}
         trainerActive={view === 'trainer'}
         onToggleTrainer={() => setView((v) => (v === 'trainer' ? 'chat' : 'trainer'))}
       />
@@ -140,6 +154,7 @@ export default function App() {
             reviewError={coach.reviewError}
             onFixFlag={handleFixFlag}
             onDismissReview={coach.clearReview}
+            onRegenerate={chat.regenerate}
           />
         )}
       </main>

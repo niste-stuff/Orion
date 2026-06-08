@@ -6,7 +6,7 @@ type CompletionResponse = {
   choices?: Array<{ message?: { content?: string } }>
 }
 
-type ModelsResponse = {
+export type ModelsResponse = {
   data?: Array<{ id?: unknown }>
 }
 
@@ -49,7 +49,13 @@ function contentFromProxy(res: ProxyResponse): string {
       `Request failed (${res.status} ${res.statusText})${res.body ? `: ${res.body}` : ''}`,
     )
   }
-  const data = JSON.parse(res.body) as CompletionResponse
+  let data: CompletionResponse
+  try {
+    data = JSON.parse(res.body) as CompletionResponse
+  } catch (err) {
+    const bodySnippet = res.body ? (res.body.length > 300 ? res.body.slice(0, 300) + '...' : res.body) : '(empty body)'
+    throw new Error(`Failed to parse API response as JSON: ${bodySnippet}`)
+  }
   const content = data.choices?.[0]?.message?.content
   if (typeof content !== 'string') {
     throw new Error('Malformed response: missing message content')
@@ -103,6 +109,53 @@ export async function chatCompletionWithStyle(
   return contentFromProxy(res)
 }
 
+function extractModelIds(json: unknown): string[] {
+  const ids: string[] = []
+
+  const processValue = (val: unknown) => {
+    if (typeof val === 'string' && val.trim()) {
+      ids.push(val.trim())
+    } else if (typeof val === 'object' && val !== null) {
+      const obj = val as Record<string, unknown>
+      for (const key of ['id', 'name', 'model']) {
+        if (typeof obj[key] === 'string' && (obj[key] as string).trim()) {
+          ids.push((obj[key] as string).trim())
+          return
+        }
+      }
+      for (const key of Object.keys(obj)) {
+        if (typeof obj[key] === 'string' && (obj[key] as string).trim()) {
+          ids.push((obj[key] as string).trim())
+          return
+        }
+      }
+    }
+  }
+
+  if (Array.isArray(json)) {
+    json.forEach(processValue)
+  } else if (typeof json === 'object' && json !== null) {
+    const obj = json as Record<string, unknown>
+    const arrays: unknown[][] = []
+    if (Array.isArray(obj.data)) {
+      arrays.push(obj.data)
+    }
+    if (Array.isArray(obj.models)) {
+      arrays.push(obj.models)
+    }
+    for (const key of Object.keys(obj)) {
+      if (key !== 'data' && key !== 'models' && Array.isArray(obj[key])) {
+        arrays.push(obj[key] as unknown[])
+      }
+    }
+    for (const arr of arrays) {
+      arr.forEach(processValue)
+    }
+  }
+
+  return Array.from(new Set(ids)).sort()
+}
+
 /**
  * GET `${baseUrl}/models` (via the Rust `llm_list_models` command) and return the
  * list of model ids. Used by the Connections manager's optional "Fetch models"
@@ -118,13 +171,16 @@ export async function fetchModels(
   })
 
   if (!res.ok) {
-    throw new Error(`Request failed (${res.status} ${res.statusText})`)
+    throw new Error(`Request failed (${res.status} ${res.statusText})${res.body ? `: ${res.body}` : ''}`)
   }
 
-  const data = JSON.parse(res.body) as ModelsResponse
-  const ids = (data.data ?? [])
-    .map((m) => m.id)
-    .filter((id): id is string => typeof id === 'string')
+  let data: unknown
+  try {
+    data = JSON.parse(res.body)
+  } catch (err) {
+    const bodySnippet = res.body ? (res.body.length > 300 ? res.body.slice(0, 300) + '...' : res.body) : '(empty body)'
+    throw new Error(`Failed to parse models response as JSON: ${bodySnippet}`)
+  }
 
-  return Array.from(new Set(ids)).sort()
+  return extractModelIds(data)
 }

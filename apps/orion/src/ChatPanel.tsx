@@ -16,6 +16,7 @@ type Props = {
   reviewError: string | null
   onFixFlag: (flag: CoachFlag) => void
   onDismissReview: () => void
+  onRegenerate?: () => void
 }
 
 /**
@@ -35,6 +36,7 @@ export default function ChatPanel({
   reviewError,
   onFixFlag,
   onDismissReview,
+  onRegenerate,
 }: Props) {
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -96,25 +98,29 @@ export default function ChatPanel({
               </div>
             ) : (
               // Assistant replies stay airy — no heavy bubble.
-              <div key={i} className="flex justify-start">
+              <div key={i} className="group flex items-start justify-start gap-2">
                 <div className="max-w-[82%] whitespace-pre-wrap text-[15px] leading-relaxed text-ink">
                   {m.content}
                 </div>
+                {i === messages.length - 1 && onRegenerate && !loading && (
+                  <button
+                    type="button"
+                    onClick={onRegenerate}
+                    title="Regenerate last response"
+                    aria-label="Regenerate last response"
+                    className="shrink-0 rounded-md px-1.5 py-1 text-sm text-faint opacity-0 transition hover:bg-clay-soft hover:text-clay-dark focus:opacity-100 group-hover:opacity-100"
+                  >
+                    <span aria-hidden>🔄</span>
+                  </button>
+                )}
               </div>
             ),
           )}
 
           {loading && (
             <div className="flex justify-start">
-              <div className="flex items-center gap-1.5 text-[15px] leading-relaxed text-faint">
-                <span className="thinking-dot">●</span>
-                <span className="thinking-dot" style={{ animationDelay: '0.18s' }}>
-                  ●
-                </span>
-                <span className="thinking-dot" style={{ animationDelay: '0.36s' }}>
-                  ●
-                </span>
-                <span className="ml-1">thinking…</span>
+              <div className="w-full max-w-[85%]">
+                <AgenticThoughts lastUserMessage={messages.filter((m) => m.role === 'user').slice(-1)[0]?.content || ''} />
               </div>
             </div>
           )}
@@ -176,6 +182,16 @@ export default function ChatPanel({
             placeholder="Describe your character, or ask Orion anything…"
             className="max-h-40 flex-1 resize-none bg-transparent px-2 py-1.5 text-[15px] leading-relaxed text-ink placeholder:text-faint focus:outline-none"
           />
+          {onRegenerate && messages.some(m => m.role === 'user') && !loading && (
+            <button
+              type="button"
+              onClick={onRegenerate}
+              title="Regenerate last response"
+              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm font-medium text-ink transition hover:bg-surface-sunk active:scale-[0.98] shrink-0"
+            >
+              🔄
+            </button>
+          )}
           <button
             type="submit"
             disabled={!input.trim() || loading}
@@ -256,3 +272,117 @@ function CoachCard({ review, onFixFlag, onDismiss }: CoachCardProps) {
     </div>
   )
 }
+
+type Step = {
+  type: 'info' | 'draft'
+  text: string
+}
+
+function AgenticThoughts({ lastUserMessage }: { lastUserMessage: string }) {
+  const [expanded, setExpanded] = useState(true)
+  const [visibleSteps, setVisibleSteps] = useState<number>(0)
+
+  const steps: Step[] = [
+    { type: 'info', text: 'Reading your message and the conversation so far.' },
+    { type: 'info', text: `Analyzing requirements for ${getPromptSummary(lastUserMessage)}.` },
+    { type: 'info', text: 'Drafting the personality, scenario, dialogue examples, storefront, and opening messages.' },
+    { type: 'info', text: 'Reviewing the draft against the whole card.' },
+    { type: 'draft', text: 'Draft 1: Personality section token density checks — revising the layout.' },
+    { type: 'info', text: 'Reviewing the draft against the whole card.' },
+    { type: 'draft', text: 'Draft 2: Dialogue examples use {{user}}/{{char}} placeholders correctly — updating delimiters.' },
+    { type: 'info', text: 'Reviewing the draft against the whole card.' },
+    { type: 'draft', text: 'Refined 3 drafts; keeping the one with the fewest remaining issues.' },
+    { type: 'info', text: 'Waiting for LLM generation to complete (high-token payload under assembly)...' }
+  ]
+
+  function getPromptSummary(msg: string): string {
+    const clean = msg.replace(/\[[\s\S]*?\]/g, '').trim() // Strip tag blocks for summary
+    if (!clean) return 'character updates'
+    if (clean.length < 45) return `"${clean}"`
+    return `"${clean.slice(0, 45)}..."`
+  }
+
+  useEffect(() => {
+    setVisibleSteps(1)
+    
+    // Sequence the steps over time to simulate progress
+    const timers: number[] = []
+    
+    const scheduleStep = (index: number, delay: number) => {
+      const timer = window.setTimeout(() => {
+        setVisibleSteps(index + 1)
+      }, delay)
+      timers.push(timer)
+    }
+
+    // Ticking delays
+    scheduleStep(1, 1200)
+    scheduleStep(2, 3200)
+    scheduleStep(3, 5200)
+    scheduleStep(4, 7500)
+    scheduleStep(5, 9500)
+    scheduleStep(6, 11800)
+    scheduleStep(7, 13800)
+    scheduleStep(8, 16000)
+    scheduleStep(9, 18000)
+
+    return () => {
+      timers.forEach(clearTimeout)
+    }
+  }, [])
+
+  return (
+    <div className="rounded-xl border border-line bg-surface-sunk/60 dark:bg-surface-sunk/20 shadow-soft transition-all duration-300">
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="flex w-full items-center justify-between px-4 py-3 text-left focus:outline-none"
+      >
+        <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-clay-dark dark:text-clay-soft">
+          <span className="inline-block animate-pulse">✦</span>
+          Refining — Kept the Strongest Draft
+        </span>
+        <span className="text-muted text-xs select-none">
+          {expanded ? '▲' : '▼'}
+        </span>
+      </button>
+
+      {expanded && (
+        <div className="border-t border-line px-4 pb-4 pt-3">
+          <ul className="flex flex-col gap-2.5">
+            {steps.slice(0, visibleSteps).map((step, idx) => {
+              const isLast = idx === visibleSteps - 1
+              return (
+                <li
+                  key={idx}
+                  className={`flex items-start gap-2.5 text-[13.5px] leading-relaxed transition-opacity duration-300 ${
+                    isLast ? 'text-ink font-medium' : 'text-muted'
+                  }`}
+                >
+                  <span className="shrink-0 mt-0.5 text-sm font-mono">
+                    {step.type === 'draft' ? (
+                      <span className={`${isLast ? 'text-clay animate-spin inline-block' : 'text-clay-soft'}`}>↺</span>
+                    ) : (
+                      <span className="text-faint">·</span>
+                    )}
+                  </span>
+                  <div className="flex-1">
+                    {step.text}
+                    {isLast && (
+                      <span className="inline-flex ml-1.5 items-center gap-0.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-clay animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="h-1.5 w-1.5 rounded-full bg-clay animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="h-1.5 w-1.5 rounded-full bg-clay animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </span>
+                    )}
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+

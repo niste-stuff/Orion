@@ -59,7 +59,7 @@ export function useHoverExpand({ openDelay = 180, closeDelay = 220 }: Options = 
     try {
       keyboard = target.matches(':focus-visible')
     } catch {
-      keyboard = true
+      keyboard = false
     }
     if (isTextEntry || keyboard) setFocused(true)
   }, [])

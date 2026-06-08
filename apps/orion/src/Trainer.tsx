@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 
 /**
@@ -66,6 +66,7 @@ const fieldClass =
 type Props = { onClose: () => void }
 
 export default function Trainer({ onClose }: Props) {
+  const isMounted = useRef(true)
   const [sets, setSets] = useState<SampleSetSummary[]>([])
 
   // Target: a brand-new set, or an existing set id to append to.
@@ -82,12 +83,23 @@ export default function Trainer({ onClose }: Props) {
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
 
+  useEffect(() => {
+    isMounted.current = true
+    return () => {
+      isMounted.current = false
+    }
+  }, [])
+
   const refreshSets = useCallback(async () => {
     try {
       const list = await invoke<SampleSetSummary[]>('list_my_sample_sets')
-      setSets(list)
+      if (isMounted.current) {
+        setSets(list)
+      }
     } catch (err) {
-      setStatus({ kind: 'err', text: errMessage(err) })
+      if (isMounted.current) {
+        setStatus({ kind: 'err', text: errMessage(err) })
+      }
     }
   }, [])
 
@@ -201,17 +213,23 @@ export default function Trainer({ onClose }: Props) {
       await invoke('save_sample_set', { set })
       await refreshSets()
       const verb = selected ? 'updated' : 'created'
-      setStatus({
-        kind: 'ok',
-        text: `Style "${effectiveName}" ${verb} — ${cleanedSamples.length} example${
-          cleanedSamples.length === 1 ? '' : 's'
-        } added.`,
-      })
-      resetForm()
+      if (isMounted.current) {
+        setStatus({
+          kind: 'ok',
+          text: `Style "${effectiveName}" ${verb} — ${cleanedSamples.length} example${
+            cleanedSamples.length === 1 ? '' : 's'
+          } added.`,
+        })
+        resetForm()
+      }
     } catch (err) {
-      setStatus({ kind: 'err', text: errMessage(err) })
+      if (isMounted.current) {
+        setStatus({ kind: 'err', text: errMessage(err) })
+      }
     } finally {
-      setSaving(false)
+      if (isMounted.current) {
+        setSaving(false)
+      }
     }
   }
 
@@ -219,7 +237,9 @@ export default function Trainer({ onClose }: Props) {
     try {
       await invoke('reveal_data_dir')
     } catch (err) {
-      setStatus({ kind: 'err', text: errMessage(err) })
+      if (isMounted.current) {
+        setStatus({ kind: 'err', text: errMessage(err) })
+      }
     }
   }
 
@@ -227,9 +247,13 @@ export default function Trainer({ onClose }: Props) {
     try {
       await invoke('rebuild_index')
       await refreshSets()
-      setStatus({ kind: 'ok', text: 'Rescanned files.' })
+      if (isMounted.current) {
+        setStatus({ kind: 'ok', text: 'Rescanned files.' })
+      }
     } catch (err) {
-      setStatus({ kind: 'err', text: errMessage(err) })
+      if (isMounted.current) {
+        setStatus({ kind: 'err', text: errMessage(err) })
+      }
     }
   }
 

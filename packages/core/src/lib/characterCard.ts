@@ -86,19 +86,19 @@ export function buildCard(title: string, card: Card): CharacterCardV2 {
     extensions: {},
   }
 
-  // Lorebook bakes in only when it's enabled AND has content.
-  if (card.lorebook.enabled && card.lorebook.text.trim() !== '') {
+  // Compile individual entries into native v2 spec format
+  if (card.lorebook.enabled && card.lorebook.entries && card.lorebook.entries.length > 0) {
     data.character_book = {
-      entries: [
-        {
-          keys: [],
-          content: card.lorebook.text,
-          enabled: true,
-          insertion_order: 0,
-          constant: true,
-        },
-      ],
       name,
+      entries: card.lorebook.entries
+        .filter((e) => e.enabled && e.content.trim() !== '')
+        .map((e) => ({
+          keys: e.keys.map((k) => k.trim().toLowerCase()),
+          content: e.content.trim(),
+          enabled: true,
+          insertion_order: e.insertionOrder ?? 50,
+          constant: e.keys.length === 0, // Treats empty-key blocks as permanent global context
+        })),
     }
   }
 
@@ -127,7 +127,14 @@ function downloadBlob(blob: Blob, filename: string): void {
 function toBase64Utf8(str: string): string {
   const bytes = new TextEncoder().encode(str)
   let binary = ''
-  for (const b of bytes) binary += String.fromCharCode(b)
+  const len = bytes.byteLength
+  const chunkSize = 16384
+  for (let i = 0; i < len; i += chunkSize) {
+    binary += String.fromCharCode.apply(
+      null,
+      bytes.subarray(i, Math.min(i + chunkSize, len)) as unknown as number[]
+    )
+  }
   return btoa(binary)
 }
 

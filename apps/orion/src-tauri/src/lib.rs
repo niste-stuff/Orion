@@ -21,6 +21,7 @@ pub fn run() {
       storage::list_cards,
       storage::load_card,
       storage::save_card,
+      storage::delete_card,
       storage::save_sample_set,
       storage::list_my_sample_sets,
       storage::rebuild_index,

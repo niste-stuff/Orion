@@ -19,10 +19,11 @@ type Props = {
   // Card library
   cards: CardSummary[]
   activeId: string | null
-  title: string
   onSetTitle: (v: string) => void
   onNewCard: () => void
   onSwitchCard: (id: string) => void
+  onDeleteCard?: (id: string) => void
+  onRenameCard?: (id: string, v: string) => void
   trainerActive: boolean
   onToggleTrainer: () => void
 }
@@ -56,15 +57,18 @@ export default function Sidebar({
   onToggleTheme,
   cards,
   activeId,
-  title,
   onSetTitle,
   onNewCard,
   onSwitchCard,
+  onDeleteCard,
+  onRenameCard,
   trainerActive,
   onToggleTrainer,
 }: Props) {
   const isDark = theme === 'dark'
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editTitle, setEditTitle] = useState('')
   // Expand the instant the cursor arrives; keep a short close delay so brushing
   // past the edge doesn't snap it shut.
   const { open, pinned, togglePin, containerProps } = useHoverExpand({
@@ -235,31 +239,89 @@ export default function Sidebar({
                 <p className="px-2 py-1 text-xs text-faint">No cards yet.</p>
               ) : (
                 <ul className="flex flex-col gap-0.5">
-                  {cards.map((c) =>
-                    c.id === activeId ? (
-                      <li key={c.id}>
+                  {cards.map((c) => {
+                    const isActive = c.id === activeId
+                    return editingId === c.id ? (
+                      <li key={c.id} className="px-1 py-0.5">
                         <input
                           type="text"
-                          value={title}
-                          onChange={(e) => onSetTitle(e.target.value)}
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              if (onRenameCard) {
+                                onRenameCard(c.id, editTitle)
+                              } else if (isActive) {
+                                onSetTitle(editTitle)
+                              }
+                              setEditingId(null)
+                            } else if (e.key === 'Escape') {
+                              setEditingId(null)
+                            }
+                          }}
+                          onBlur={() => {
+                            if (onRenameCard) {
+                              onRenameCard(c.id, editTitle)
+                            } else if (isActive) {
+                              onSetTitle(editTitle)
+                            }
+                            setEditingId(null)
+                          }}
+                          autoFocus
                           placeholder="Untitled"
                           aria-label="Card title"
-                          className="w-full rounded-lg border border-clay/40 bg-paper px-2.5 py-1.5 text-sm font-medium text-ink shadow-soft transition focus:border-clay focus:outline-none focus:ring-2 focus:ring-clay/15"
+                          className="w-full rounded-lg border border-clay/40 bg-paper px-2 py-1 text-sm font-medium text-ink shadow-soft transition focus:border-clay focus:outline-none focus:ring-2 focus:ring-clay/15"
                         />
                       </li>
                     ) : (
-                      <li key={c.id}>
+                      <li
+                        key={c.id}
+                        className={`group relative flex items-center justify-between rounded-lg transition ${
+                          isActive
+                            ? 'bg-clay-soft/60 text-clay-dark'
+                            : 'hover:bg-surface-sunk text-muted hover:text-ink'
+                        }`}
+                      >
                         <button
                           type="button"
                           onClick={() => onSwitchCard(c.id)}
                           title={c.title || 'Untitled'}
-                          className="block w-full truncate rounded-lg px-2.5 py-1.5 text-left text-sm text-muted transition hover:bg-surface-sunk hover:text-ink"
+                          className="w-full truncate px-3 py-2 text-left text-sm font-medium pr-14"
                         >
                           {c.title || 'Untitled'}
                         </button>
+                        <div className="absolute right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingId(c.id)
+                              setEditTitle(c.title || 'Untitled')
+                            }}
+                            title="Rename card"
+                            aria-label="Rename card"
+                            className="text-xs text-faint hover:text-clay-dark focus:text-clay-dark transition"
+                          >
+                            ✏️
+                          </button>
+                          {onDeleteCard && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (confirm(`Delete card "${c.title || 'Untitled'}"?`)) {
+                                  onDeleteCard(c.id)
+                                }
+                              }}
+                              title="Delete card"
+                              aria-label="Delete card"
+                              className="text-xs text-faint hover:text-red-600 focus:text-red-600 transition"
+                            >
+                              🗑
+                            </button>
+                          )}
+                        </div>
                       </li>
-                    ),
-                  )}
+                    )
+                  })}
                 </ul>
               )}
             </div>
