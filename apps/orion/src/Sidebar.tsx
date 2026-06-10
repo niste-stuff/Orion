@@ -28,6 +28,42 @@ type Props = {
   onToggleTrainer: () => void
 }
 
+const LogoIcon = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 100 100"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+  >
+    <g>
+      <circle cx="38" cy="62" r="8" fill="currentColor" />
+      <circle
+        cx="38"
+        cy="62"
+        r="26"
+        stroke="currentColor"
+        strokeWidth="11"
+        strokeLinecap="round"
+        strokeDasharray="122.5 40.8"
+        fill="none"
+      />
+    </g>
+    <g transform="rotate(180 50 50)">
+      <circle cx="38" cy="62" r="8" fill="currentColor" />
+      <circle
+        cx="38"
+        cy="62"
+        r="26"
+        stroke="currentColor"
+        strokeWidth="11"
+        strokeLinecap="round"
+        strokeDasharray="122.5 40.8"
+        fill="none"
+      />
+    </g>
+  </svg>
+)
+
 const fieldClass =
   'rounded-lg border border-line bg-surface px-3 py-1.5 text-sm text-ink placeholder:text-faint transition focus:border-clay focus:outline-none focus:ring-2 focus:ring-clay/15'
 
@@ -96,9 +132,12 @@ export default function Sidebar({
             >
               <span aria-hidden>{pinned ? '◉' : '◎'}</span>
             </button>
-            <div className="min-w-0">
-              <h1 className="truncate text-base font-semibold tracking-tight text-ink">Orion</h1>
-              <p className="truncate text-xs text-faint">Character card studio</p>
+            <div className="flex items-center gap-2 min-w-0">
+              <LogoIcon className="h-6 w-6 text-clay shrink-0" />
+              <div className="min-w-0">
+                <h1 className="truncate text-base font-semibold tracking-tight text-ink">Orion</h1>
+                <p className="truncate text-xs text-faint">Character card studio</p>
+              </div>
             </div>
           </div>
 
