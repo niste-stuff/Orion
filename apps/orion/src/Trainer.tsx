@@ -1,5 +1,70 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke as tauriInvoke } from '@tauri-apps/api/core'
+import { isTauri } from '@orion/core'
+
+async function invoke<T>(cmd: string, args?: any): Promise<T> {
+  if (isTauri()) {
+    return await tauriInvoke<T>(cmd, args);
+  }
+
+  switch (cmd) {
+    case 'list_my_sample_sets': {
+      const summaries: SampleSetSummary[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('orion_set_')) {
+          try {
+            const set = JSON.parse(localStorage.getItem(key)!);
+            summaries.push({
+              id: set.id,
+              name: set.name,
+              slug: set.slug,
+              tags: set.tags || [],
+              sampleCount: (set.samples || []).length
+            });
+          } catch (e) {
+            console.error('Failed to parse sample set:', key, e);
+          }
+        }
+      }
+      return summaries as unknown as T;
+    }
+    case 'save_sample_set': {
+      const set = args?.set;
+      if (!set || !set.id) throw new Error('Invalid sample set data');
+      
+      const existingStr = localStorage.getItem('orion_set_' + set.id);
+      if (existingStr) {
+        try {
+          const existing = JSON.parse(existingStr);
+          const mergedSamples = [...(existing.samples || []), ...(set.samples || [])];
+          if (mergedSamples.length > MAX_SAMPLES) {
+            throw new Error(`Cannot save: total samples exceed maximum limit of ${MAX_SAMPLES}.`);
+          }
+          set.samples = mergedSamples;
+          set.createdAt = existing.createdAt || set.createdAt;
+        } catch (e) {
+          console.error('Failed to merge set:', e);
+        }
+      } else {
+        if ((set.samples || []).length > MAX_SAMPLES) {
+          throw new Error(`Cannot save: total samples exceed maximum limit of ${MAX_SAMPLES}.`);
+        }
+      }
+      
+      localStorage.setItem('orion_set_' + set.id, JSON.stringify(set));
+      return undefined as unknown as T;
+    }
+    case 'rebuild_index': {
+      return undefined as unknown as T;
+    }
+    case 'reveal_data_dir': {
+      throw new Error('Opening local data directory is not supported in the browser.');
+    }
+    default:
+      throw new Error(`Command "${cmd}" not supported in browser mode.`);
+  }
+}
 
 /**
  * The Trainer: the only in-app door for teaching Orion a style. The author adds
@@ -482,22 +547,30 @@ export default function Trainer({ onClose }: Props) {
 
           {/* Actions */}
           <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={openDataFolder}
-                className="rounded-lg border border-line bg-paper px-3 py-1.5 text-xs font-medium text-muted shadow-soft transition hover:bg-surface-sunk hover:text-ink"
-              >
-                Open data folder
-              </button>
-              <button
-                type="button"
-                onClick={rescan}
-                className="rounded-lg border border-line bg-paper px-3 py-1.5 text-xs font-medium text-muted shadow-soft transition hover:bg-surface-sunk hover:text-ink"
-              >
-                Rescan files
-              </button>
-            </div>
+            {isTauri() ? (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={openDataFolder}
+                  className="rounded-lg border border-line bg-paper px-3 py-1.5 text-xs font-medium text-muted shadow-soft transition hover:bg-surface-sunk hover:text-ink"
+                >
+                  Open data folder
+                </button>
+                <button
+                  type="button"
+                  onClick={rescan}
+                  className="rounded-lg border border-line bg-paper px-3 py-1.5 text-xs font-medium text-muted shadow-soft transition hover:bg-surface-sunk hover:text-ink"
+                >
+                  Rescan files
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-faint">
+                  Browser LocalStorage active
+                </span>
+              </div>
+            )}
             <button
               type="button"
               onClick={save}

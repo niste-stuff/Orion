@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke as tauriInvoke } from '@tauri-apps/api/core'
+import { isTauri } from '@orion/core'
 import type { Card, CardUpdates, Lorebook, ScalarSection, ChatMessage } from '@orion/core'
 import { MAX_OPENING_MESSAGES } from '@orion/core'
 
@@ -16,6 +17,49 @@ type StoredCard = {
   updatedAt: string
   sections: Card
   chatHistory?: ChatMessage[]
+}
+
+async function invoke<T>(cmd: string, args?: any): Promise<T> {
+  if (isTauri()) {
+    return await tauriInvoke<T>(cmd, args);
+  }
+
+  switch (cmd) {
+    case 'list_cards': {
+      const summaries: CardSummary[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('orion_card_')) {
+          try {
+            const stored = JSON.parse(localStorage.getItem(key)!) as StoredCard;
+            summaries.push({ id: stored.id, title: stored.title, updatedAt: stored.updatedAt });
+          } catch (e) {
+            console.error('Failed to parse card:', key, e);
+          }
+        }
+      }
+      return summaries.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)) as unknown as T;
+    }
+    case 'load_card': {
+      const id = args?.id;
+      const item = localStorage.getItem('orion_card_' + id);
+      if (!item) throw new Error('Card not found');
+      return JSON.parse(item) as T;
+    }
+    case 'save_card': {
+      const card = args?.card;
+      if (!card || !card.id) throw new Error('Invalid card data');
+      localStorage.setItem('orion_card_' + card.id, JSON.stringify(card));
+      return undefined as unknown as T;
+    }
+    case 'delete_card': {
+      const id = args?.id;
+      localStorage.removeItem('orion_card_' + id);
+      return undefined as unknown as T;
+    }
+    default:
+      throw new Error(`Command "${cmd}" not supported in browser mode.`);
+  }
 }
 
 export type SaveStatus = 'idle' | 'saving' | 'saved'
