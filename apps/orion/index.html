@@ -3,6 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.png" />
+    <link rel="manifest" href="/manifest.json" />
     <title>Orion Chat</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -21,6 +24,19 @@
           document.documentElement.classList.add('dark')
         }
       })()
+    </script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js')
+            .then(function(reg) {
+              console.log('PWA ServiceWorker registered with scope: ', reg.scope);
+            })
+            .catch(function(err) {
+              console.error('PWA ServiceWorker registration failed: ', err);
+            });
+        });
+      }
     </script>
   </head>
   <body>
