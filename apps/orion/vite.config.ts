@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: process.env.GITHUB_ACTIONS ? '/Orion/' : '/',
   plugins: [react()],
   // Tauri integration: keep the CLI output, pin the dev port to match
   // tauri.conf.json's devUrl, and don't let Vite restart on Rust changes.
